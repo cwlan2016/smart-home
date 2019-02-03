@@ -28,7 +28,7 @@ class HttpApi(private val deviceManager: DeviceManager) {
         get("/devices/:deviceId/actuators/:actuatorId", ::getActuator)
         get("/devices/:deviceId/sensors/:sensorId", ::getSensor)
 
-        put("/devices/:deviceId/actuators/:actuatorId/:state", ::putActuator)
+        put("/devices/:deviceId/actuators", ::putActuator)
     }
 
     /** Returns all devices and their services */
@@ -106,19 +106,8 @@ class HttpApi(private val deviceManager: DeviceManager) {
         }
 
         // Check if actuator exists
-        val actuatorId = request.params(":actuatorId").toIntOrNull()
-        if (actuatorId == null) {
-            response.status(400)
-            return json.toJsonString(
-                ApiError("actuatorId", "Actuator ID is not an integer!")
-            )
-        }
-
-        val actuator = try {
-            device.actuators[actuatorId]
-        } catch (ex: IndexOutOfBoundsException) {
-            null
-        }
+        val actuatorId = request.params(":actuatorId")
+        val actuator = device.actuators[actuatorId]
         if (actuator == null) {
             response.status(404)
             return json.toJsonString(
@@ -145,19 +134,9 @@ class HttpApi(private val deviceManager: DeviceManager) {
         }
 
         // Check if sensor exists
-        val sensorId = request.params(":sensorId").toIntOrNull()
-        if (sensorId == null) {
-            response.status(400)
-            return json.toJsonString(
-                ApiError("sensor_id", "Sensor ID is not an integer!")
-            )
-        }
+        val sensorId = request.params(":sensorId")
+        val sensor = device.sensors[sensorId]
 
-        val sensor = try {
-            device.sensors[sensorId]
-        } catch (ex: IndexOutOfBoundsException) {
-            null
-        }
         if (sensor == null) {
             response.status(404)
             return json.toJsonString(
@@ -183,52 +162,46 @@ class HttpApi(private val deviceManager: DeviceManager) {
             )
         }
 
-        // Check if actuator exists
-        val actuatorId = request.params(":actuatorId").toIntOrNull()
-        if (actuatorId == null) {
-            response.status(400)
-            return json.toJsonString(
-                ApiError("actuatorId", "Actuator ID is not an integer!")
-            )
-        }
-
-        val actuator = try {
-            device.actuators[actuatorId]
-        } catch (ex: IndexOutOfBoundsException) {
-            null
-        }
-        if (actuator == null) {
-            response.status(404)
-            return json.toJsonString(
-                ApiError("not_found", "Actuator with ID = $actuatorId not found!")
-            )
-        }
-
         // Verify new state
-        val state = request.params(":state").toIntOrNull()
-        if (state == null) {
+        val body = request.body()
+        val states = json.parse<Map<String, Int>>(body)
+
+        if (states == null) {
             response.status(400)
             return json.toJsonString(
-                ApiError("state", "New State is not an integer!")
-            )
-        }
-        if (state < actuator.min) {
-            response.status(400)
-            return json.toJsonString(
-                ApiError("state", "New State is smaller than the minimum value ($state < ${actuator.min})")
-            )
-        }
-        if (state > actuator.max) {
-            response.status(400)
-            return json.toJsonString(
-                ApiError("state", "New State is larger than the maximum value ($state > ${actuator.max})")
+                ApiError("body", "JSON Body could not be parsed")
             )
         }
 
-        // Set new state
-        deviceManager.setActuatorState(deviceId, actuatorId, state)
+        // Check if each actuator exists and verify min/max
+        states.forEach { (actuatorId, state) ->
+            val actuator = device.actuators[actuatorId]
+            if (actuator == null) {
+                response.status(404)
+                return json.toJsonString(
+                    ApiError("not_found", "Actuator with ID = $actuatorId not found!")
+                )
+            }
+
+            if (state < actuator.min) {
+                response.status(400)
+                return json.toJsonString(
+                    ApiError("state", "New State is smaller than the minimum value ($state < ${actuator.min})")
+                )
+            }
+
+            if (state > actuator.max) {
+                response.status(400)
+                return json.toJsonString(
+                    ApiError("state", "New State is larger than the maximum value ($state > ${actuator.max})")
+                )
+            }
+        }
+
+        // Set new states
+        deviceManager.setActuatorStates(deviceId, states)
 
         response.status(200)
-        return json.toJsonString(ActuatorStateChange(state))
+        return "{}"
     }
 }

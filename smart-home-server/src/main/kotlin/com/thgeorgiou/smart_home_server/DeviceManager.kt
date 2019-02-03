@@ -31,16 +31,14 @@ class DeviceManager(val broker: Broker) : IMqttMessageListener{
      * to publish the new state back. This way we avoid having an inconsistent
      * state.
      */
-    fun setActuatorState(deviceId: String, actuatorId: Int, state: Int): Boolean {
+    fun setActuatorStates(deviceId: String, states: Map<String, Int>): Boolean {
         // Try to find device & actuator
-        val device = devices[deviceId] ?: return false
-        if (actuatorId >= device.actuators.size) return false
+        if (!devices.containsKey(deviceId)) return false
 
         // Create payload
-        device.actuators[actuatorId].state = state
-        val payload = json.toJsonString(ActuatorStateChange(state)).toByteArray(Charsets.UTF_8)
+        val payload = json.toJsonString(states).toByteArray(Charsets.UTF_8)
 
-        broker.publish("devices/$deviceId/actuators/$actuatorId", payload, 1)
+        broker.publish("devices/$deviceId/actuators", payload, 1)
         return true
     }
 
@@ -68,31 +66,18 @@ class DeviceManager(val broker: Broker) : IMqttMessageListener{
             return
         }
 
-        // Actuator state update
-        if (tokens.size == 4 && tokens[2] == "actuator") {
-            val newState = json.parse<ActuatorStateChange>(payload)?.state ?: return
-            val deviceId = tokens[1]
-            val actuatorId = tokens[3].toIntOrNull() ?: return
-
-            // Try to set the new state
-            if (!devices.containsKey(deviceId)) return
-            if (devices[deviceId]!!.actuators.size <= actuatorId) return
-            devices[deviceId]!!.actuators[actuatorId].state = newState
-
-            return
-        }
-
         // Sensor value update
         if (tokens.size == 4 && tokens[2] == "sensor") {
             val newValue = json.parse<SensorValueChange>(payload)?.value ?: return
 
             val deviceId = tokens[1]
-            val sensorId = tokens[3].toIntOrNull() ?: return
+            val sensorId = tokens[3]
 
             // Try to set the new state
-            if (!devices.containsKey(deviceId)) return
-            if (devices[deviceId]!!.sensors.size <= sensorId) return
-            devices[deviceId]!!.sensors[sensorId].value = newValue
+            val device = devices[deviceId] ?: return
+            val sensor = device.sensors[sensorId] ?: return
+
+            sensor.value = newValue
 
             return
         }
