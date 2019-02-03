@@ -18,6 +18,12 @@ class HttpApi(private val deviceManager: DeviceManager) {
         // We respond to everything with JSON
         before("*") { _: Request, response: Response ->
             response.header("Content-Type", "application/json")
+            response.header("Access-Control-Allow-Origin", "*")
+        }
+
+        options("*") { _: Request, response: Response ->
+            response.header("Access-Control-Allow-Origin", "*")
+            return@options ""
         }
 
         // Route handlers
