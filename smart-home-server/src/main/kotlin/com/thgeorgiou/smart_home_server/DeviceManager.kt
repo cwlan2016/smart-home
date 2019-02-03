@@ -33,7 +33,11 @@ class DeviceManager(val broker: Broker) : IMqttMessageListener{
      */
     fun setActuatorStates(deviceId: String, states: Map<String, Int>): Boolean {
         // Try to find device & actuator
-        if (!devices.containsKey(deviceId)) return false
+        // TODO Before setting state check if the mqtt packet actually got delivered?
+        val device = devices[deviceId] ?: return false
+        states.forEach {(actuatorId, newState) ->
+            device.actuators[actuatorId]?.state = newState
+        }
 
         // Create payload
         val payload = json.toJsonString(states).toByteArray(Charsets.UTF_8)
