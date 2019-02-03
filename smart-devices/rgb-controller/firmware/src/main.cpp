@@ -8,7 +8,9 @@ void wifi_setup();
 void setup() {
   Serial.begin(115200);
 
-  pinMode(D2, OUTPUT);
+  pinMode(PIN_RED, OUTPUT);
+  pinMode(PIN_GREEN, OUTPUT);
+  pinMode(PIN_BLUE, OUTPUT);
 
   wifi_setup();
   mqtt_setup();

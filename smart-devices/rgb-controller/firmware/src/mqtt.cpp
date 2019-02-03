@@ -9,7 +9,7 @@ Ticker mqtt_reconnect_timer;
 
 /** MQTT Topic for changing actuator 0 state */
 const char* topic_actuator_led =
-    "com.thgeorgiou.smart-home-server/devices/" DEVICE_ID "/actuators/0";
+    "com.thgeorgiou.smart-home-server/devices/" DEVICE_ID "/actuators";
 
 /** JSON Buffer */
 const size_t capacity = JSON_OBJECT_SIZE(1) + 20;
@@ -30,10 +30,14 @@ void mqtt_connect() {
 void mqtt_on_connect(bool sessionPresent) {
   // Registration JSON
   const char* payload = "{\"name\":\"" DEVICE_NAME
-                        "\",\"actuators\":["
-                        "{\"type\":\"PWM\",\"name\":\"LED "
-                        "Brightness\",\"min\":0,\"max\":1023, \"state\":0}"
-                        "], \"sensors:\":[]}";
+                        "\",\"actuators\":{"
+                        "\"red\":{\"type\":\"PWM\",\"name\":\"Red\","
+                        "\"min\":0,\"max\":1023, \"state\":0},"
+                        "\"green\":{\"type\":\"PWM\",\"name\":\"Green\","
+                        "\"min\":0,\"max\":1023, \"state\":0},"
+                        "\"blue\":{\"type\":\"PWM\",\"name\":\"Blue\","
+                        "\"min\":0,\"max\":1023, \"state\":0}"
+                        "}, \"sensors:\":[]}";
 
   Serial.println("Registering device!");
   mqtt_client.publish("com.thgeorgiou.smart-home-server/devices/" DEVICE_ID, 0,
@@ -59,15 +63,22 @@ void mqtt_on_message(char* topic, char* payload,
 
   // Handle message
   if (strcmp(topic, topic_actuator_led) == 0) {
-    Serial.println("Actuator/0 state change!");
+    Serial.println("Actuator state change!");
 
     // Deserialise message
     JsonObject& root = json.parseObject(payload);
-    int newState = root["state"];
 
-    Serial.print("New state: ");
-    Serial.println(newState, DEC);
-
-    analogWrite(D2, newState);
+    if (root.containsKey("red")) {
+      int v = root["red"];
+      analogWrite(PIN_RED, v);
+    }
+    if (root.containsKey("green")) {
+      int v = root["green"];
+      analogWrite(PIN_GREEN, v);
+    }
+    if (root.containsKey("blue")) {
+      int v = root["blue"];
+      analogWrite(PIN_BLUE, v);
+    }
   }
 }

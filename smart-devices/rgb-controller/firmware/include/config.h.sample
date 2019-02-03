@@ -6,3 +6,7 @@
 
 #define DEVICE_ID "rgb"
 #define DEVICE_NAME "RGB LED Controller"
+
+#define PIN_RED D1
+#define PIN_GREEN D2
+#define PIN_BLUE D3
